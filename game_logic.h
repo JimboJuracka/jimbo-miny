@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdbool.h>
+#include <stdint.h>
 
 // tile.mask
 #define HIDDEN 1
@@ -35,6 +36,7 @@ typedef struct {
     int width;
     int bombs;    //number of bombs
     int bombs_remaining;
+    int time;
     tile** field;
 } tileset;
 
@@ -45,6 +47,8 @@ typedef struct {
 // X
 
 extern update_logic_result game_state;
+extern bool time_is_running;
+extern uint32_t start_time;
 
 bool init_logic(tileset* mine_field, int height, int width, int n_mines);
 

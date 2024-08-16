@@ -5,17 +5,22 @@
 #include <stdbool.h>
 #include "game_logic.h"
 
-#define TILE_SIZE 30
-#define BORDER_AROUND_BOARD 20
-#define BOARD_HEADER_SIZE 90
-#define BOARDER_MIDDLE_SIZE 20
-#define FACE_SIZE 50
+#define TILE_SIZE 16*2
+#define BORDER_SIZE 12*2
+#define HEADER_HEIGHT 30*2
+#define BOARDER_MIDDLE 15*2
+#define FACE_SIZE 26*2
+#define DIGIT_HEIGHT 25*2
+#define DIGIT_WIDTH 13*2
 
 extern bool game_quit;
+
 
 bool init_graphics(tileset* logic);
 
 SDL_Texture* loadTexture(const char* path, SDL_Renderer* renderer);
+
+SDL_Texture* numbertoTexture(int number);
 
 bool process_input(tileset* logic, int* row, int* col, int* key);
 

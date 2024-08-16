@@ -1,6 +1,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdbool.h>
+#include <stdint.h>
+#include <SDL2/SDL.h>
 
 #include "game_logic.h"
 
@@ -9,6 +11,8 @@
 // 16 x 30 - 99
 
 update_logic_result game_state = LOGIC_IDLE;
+bool time_is_running = false;
+uint32_t start_time;
 
 bool init_logic(tileset* mine_field, int height, int width, int bombs){
     // allocation of memory
@@ -36,6 +40,8 @@ bool init_logic(tileset* mine_field, int height, int width, int bombs){
 // this function places mines, set numbers around them, only exists outside of init_logic so player can reset game
 void setup_game(tileset* mine_field){
     mine_field->bombs_remaining = mine_field->bombs;
+    time_is_running = false;
+    mine_field->time = 0;
 
     for(int i = 0; i < mine_field->height; i++){
         for(int j = 0; j < mine_field->width; j++){
@@ -89,6 +95,8 @@ void print_game(tileset* mine_field){
         for(int j = 0; j < mine_field->width; j++){
             if(mine_field->field[i][j].mask == HIDDEN){
                 printf("\x1b[97m" "# " "\x1b[0m");
+            }else if(mine_field->field[i][j].mask == FLAG){
+                printf("\x1b[97m" "? " "\x1b[0m");
             }else{
                 switch(mine_field->field[i][j].value){
                     case 0:
@@ -129,10 +137,10 @@ void print_game(tileset* mine_field){
         fprintf(stdout, "\t");
 
         for(int j = 0; j < mine_field->width; j++){
-            if(mine_field->field[i][j].mask == HIDDEN){
-                printf("# ");
-            }else{
+            if(mine_field->field[i][j].mask == CLEAR){
                 printf("_ ");
+            }else{
+                printf("# ");
             }
         }
 
@@ -166,7 +174,7 @@ void reveal_blank_tiles(tileset* mine_field, int x, int y){
 update_logic_result update_logic(tileset* mine_field, int x, int y, int key){
     // if out of bounds
     if(x >= mine_field->height || x < 0 || y >= mine_field->width || y < 0){
-        return LOGIC_ERR;
+        return LOGIC_IDLE;
     }
 
     // if game was already lost or won
@@ -176,12 +184,20 @@ update_logic_result update_logic(tileset* mine_field, int x, int y, int key){
         return LOGIC_WIN;
     }
 
+    // start timer if not already running
+    if(!time_is_running){
+        start_time = SDL_GetTicks();
+    }
+    time_is_running = true;
+
     // if flag is placed/displaced
     if(key == RIGHT_KEY){
         if(mine_field->field[x][y].mask == HIDDEN){
             mine_field->field[x][y].mask = FLAG;
+            mine_field->bombs_remaining--;
         }else if(mine_field->field[x][y].mask == FLAG){
             mine_field->field[x][y].mask = HIDDEN;
+            mine_field->bombs_remaining++;
         }
         return LOGIC_IDLE;
     }
@@ -220,6 +236,7 @@ update_logic_result update_logic(tileset* mine_field, int x, int y, int key){
         }
         // if any bomb were triggered this way, return loss
         if(game_lost == 1){
+            time_is_running = false;
             return LOGIC_LOSS;
         }
     }
@@ -238,6 +255,7 @@ update_logic_result update_logic(tileset* mine_field, int x, int y, int key){
             }
         }
         mine_field->field[x][y].value = TRIGGERED_BOMB;
+        time_is_running = false;
         return LOGIC_LOSS;
     }
     
@@ -247,7 +265,7 @@ update_logic_result update_logic(tileset* mine_field, int x, int y, int key){
     // if there are any hidden tiles without bomb, the game continues
     for(int i = 0; i < mine_field->height; i++){
         for(int j = 0; j < mine_field->width; j++){
-            if(mine_field->field[i][j].mask == HIDDEN && mine_field->field[i][j].value != BOMB){
+            if((mine_field->field[i][j].mask == HIDDEN || mine_field->field[i][j].mask == FLAG) && mine_field->field[i][j].value != BOMB){
                 return LOGIC_IDLE;
             }
         }
@@ -261,6 +279,7 @@ update_logic_result update_logic(tileset* mine_field, int x, int y, int key){
             }
         }
     }
+    time_is_running = false;
     return LOGIC_WIN;
 }
 

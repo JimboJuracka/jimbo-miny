@@ -15,7 +15,7 @@ int key;
 
 int main(void){
     srand(time(NULL));
-    init_logic(&logic, 16, 9, 10);
+    init_logic(&logic, 9, 9, 10);
     game_quit = init_graphics(&logic);
     if(!game_quit){
         return 1;
@@ -24,9 +24,15 @@ int main(void){
     while(game_quit){
         if(process_input(&logic, &x, &y, &key)){
             game_state = update_logic(&logic, x, y, key);
-            //print_game(&logic);
+            if(game_state == LOGIC_IDLE){
+                //printf("LOGIC IDLE\n");
+            }else if(game_state == LOGIC_LOSS){
+                //printf("LOGIC LOSS\n");
+            }
+            update_graphics(&logic);
+            x = -1;
+            y = -1;
         }
-        update_graphics(&logic);
     }
     
     destroy_graphics();
