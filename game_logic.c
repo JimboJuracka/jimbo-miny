@@ -3,6 +3,8 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include <SDL2/SDL.h>
+#include <time.h>
+#include <unistd.h>
 
 #include "game_logic.h"
 
@@ -10,9 +12,9 @@
 // 16 x 16 - 40
 // 16 x 30 - 99
 
-update_logic_result game_state = LOGIC_IDLE;
-bool time_is_running = false;
-uint32_t start_time;
+// update_logic_result game_state = LOGIC_IDLE;
+// bool time_is_running = false;
+// uint32_t start_time;
 
 bool init_logic(tileset* mine_field, int height, int width, int bombs){
     // allocation of memory
@@ -32,20 +34,34 @@ bool init_logic(tileset* mine_field, int height, int width, int bombs){
     mine_field->height = height;
     mine_field->width = width;
     mine_field->bombs = bombs;
-    setup_game(mine_field);
+    mine_field->bombs_remaining = bombs;
+    mine_field->time = 0;
+    mine_field->time_is_running = false;
+    mine_field->state = LOGIC_START;
 
+    hide_tiles(mine_field);
     return true;
 };
 
-// this function places mines, set numbers around them, only exists outside of init_logic so player can reset game
-void setup_game(tileset* mine_field){
-    mine_field->bombs_remaining = mine_field->bombs;
-    time_is_running = false;
-    mine_field->time = 0;
-
+void hide_tiles(tileset* mine_field){
     for(int i = 0; i < mine_field->height; i++){
         for(int j = 0; j < mine_field->width; j++){
             mine_field->field[i][j].mask = HIDDEN;
+        }
+    }
+}
+
+unsigned int generateComplexSeed() {
+    unsigned int seed = time(NULL) ^ getpid() ^ (uintptr_t)&seed ^ SDL_GetTicks();
+    return seed;
+}
+
+// this function places mines, set numbers around them, only exists outside of init_logic so player can reset game
+void start_game(tileset* mine_field, int start_x, int start_y){
+    srand(generateComplexSeed());
+
+    for(int i = 0; i < mine_field->height; i++){
+        for(int j = 0; j < mine_field->width; j++){
             mine_field->field[i][j].value = BLANK;
         }
     }
@@ -54,17 +70,19 @@ void setup_game(tileset* mine_field){
     int new_x;
     int new_y;
     int bombs_left_to_place = mine_field->bombs;
-    if(mine_field->bombs >= mine_field->width * mine_field->height){
+    if(mine_field->bombs >= mine_field->height * mine_field->width - 1){
         for(int i = 0; i < mine_field->height; i++){
             for(int j = 0; j < mine_field->width; j++){
-                mine_field->field[i][j].value = BOMB;
+                if(i != start_x && j != start_y){
+                    mine_field->field[i][j].value = BOMB;
+                }
             }
         }
     }else{
         while(bombs_left_to_place > 0){
             new_x = rand() % mine_field->height;
             new_y = rand() % mine_field->width;
-            if(mine_field->field[new_x][new_y].value != BOMB){
+            if(mine_field->field[new_x][new_y].value != BOMB && new_x != start_x && new_y != start_y){
                 mine_field->field[new_x][new_y].value = BOMB;
                 bombs_left_to_place--;
             }
@@ -88,6 +106,8 @@ void setup_game(tileset* mine_field){
             }
         }
     }
+
+    mine_field->state = LOGIC_IDLE;
 }
 
 void print_game(tileset* mine_field){
@@ -171,24 +191,24 @@ void reveal_blank_tiles(tileset* mine_field, int x, int y){
     }
 }
 
-update_logic_result update_logic(tileset* mine_field, int x, int y, int key){
-    // if out of bounds
+void update_logic(tileset* mine_field, int x, int y, int key){
+    // if out of bounds, do nothing
     if(x >= mine_field->height || x < 0 || y >= mine_field->width || y < 0){
-        return LOGIC_IDLE;
+        return;
     }
 
-    // if game was already lost or won
-    if(game_state == LOGIC_LOSS){
-        return LOGIC_LOSS;
-    }else if(game_state == LOGIC_WIN){
-        return LOGIC_WIN;
+    // if game was already lost or won, do nothing
+    if(mine_field->state == LOGIC_LOSS){
+        return;
+    }else if(mine_field->state == LOGIC_WIN){
+        return;
     }
 
-    // start timer if not already running
-    if(!time_is_running){
-        start_time = SDL_GetTicks();
+    // start the timer if it wasnt already running
+    if(!mine_field->time_is_running){
+        mine_field->time_is_running = true;
+        mine_field->start_time = SDL_GetTicks();
     }
-    time_is_running = true;
 
     // if flag is placed/displaced
     if(key == RIGHT_KEY){
@@ -199,14 +219,18 @@ update_logic_result update_logic(tileset* mine_field, int x, int y, int key){
             mine_field->field[x][y].mask = HIDDEN;
             mine_field->bombs_remaining++;
         }
-        return LOGIC_IDLE;
+        return;
     }
 
-    // if the clicked tile is already clear
+    // if this is the first tile to be cleared, generate bombs and start the game
+    if(mine_field->state == LOGIC_START){
+        start_game(mine_field, x, y);
+    }
+
+    // if the clicked tile is already clear, try to clear all eight tiles around it
     if(mine_field->field[x][y].mask == CLEAR){
         // first we need to count all flags around the tile
         int count_flags = 0;
-        int game_lost = 0;
         for(int i = x - 1; i <= x+1; i++){
             for(int j = y - 1; j <= y+1; j++){
                 if(i >= 0 && i < mine_field->height && j >= 0 && j < mine_field->width && mine_field->field[i][j].mask == FLAG){
@@ -223,7 +247,8 @@ update_logic_result update_logic(tileset* mine_field, int x, int y, int key){
                         // if any of the cleared tiles has a bomb, mark it
                         if(mine_field->field[i][j].value == BOMB){
                             mine_field->field[i][j].value = TRIGGERED_BOMB;
-                            game_lost = 1;
+                            mine_field->state = LOGIC_LOSS;
+                            mine_field->time_is_running = false;
                         }
                         // if any of the cleared tiles is blank, reveal other blank tiles
                         if(mine_field->field[i][j].value == BLANK){
@@ -234,15 +259,13 @@ update_logic_result update_logic(tileset* mine_field, int x, int y, int key){
             }
 
         }
-        // if any bomb were triggered this way, return loss
-        if(game_lost == 1){
-            time_is_running = false;
-            return LOGIC_LOSS;
+        // if any bombs were triggered this way, return
+        if(mine_field->state == LOGIC_LOSS){
+            return;
         }
     }
     
-
-    // if the clicked on tile has bomb, the game is over
+    // if the clicked on tile was hidden and has bomb, the game is over
     if(mine_field->field[x][y].value == BOMB){
         mine_field->field[x][y].mask = CLEAR;
 
@@ -255,23 +278,25 @@ update_logic_result update_logic(tileset* mine_field, int x, int y, int key){
             }
         }
         mine_field->field[x][y].value = TRIGGERED_BOMB;
-        time_is_running = false;
-        return LOGIC_LOSS;
+        mine_field->time_is_running = false;
+        mine_field->state = LOGIC_LOSS;
+        return;
     }
     
-    //otherwise reveal the blank tiles, if any
+    //otherwise, reveal all the blank tiles, if any
     reveal_blank_tiles(mine_field, x, y);
 
-    // if there are any hidden tiles without bomb, the game continues
+    // if there are still any hidden tiles without bomb, the game continues
     for(int i = 0; i < mine_field->height; i++){
         for(int j = 0; j < mine_field->width; j++){
             if((mine_field->field[i][j].mask == HIDDEN || mine_field->field[i][j].mask == FLAG) && mine_field->field[i][j].value != BOMB){
-                return LOGIC_IDLE;
+                mine_field->state = LOGIC_IDLE;
+                return;
             }
         }
     }
 
-    // otherwise the player won, we can mark all the bombs
+    // otherwise, the player won, and we can mark all the bombs
     for(int i = 0; i < mine_field->height; i++){
         for(int j = 0; j < mine_field->width; j++){
             if(mine_field->field[i][j].mask == HIDDEN && mine_field->field[i][j].value == BOMB){
@@ -279,8 +304,10 @@ update_logic_result update_logic(tileset* mine_field, int x, int y, int key){
             }
         }
     }
-    time_is_running = false;
-    return LOGIC_WIN;
+    mine_field->bombs_remaining = 0;
+    mine_field->time_is_running = false;
+    mine_field->state = LOGIC_WIN;
+    return;
 }
 
 void destroy_logic(tileset* mine_field){

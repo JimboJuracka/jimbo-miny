@@ -284,9 +284,9 @@ SDL_Texture* numbertoTexture(int number){
 
 void update_graphics(tileset* logic){
     // update face
-    if(game_state == LOGIC_LOSS){
+    if(logic->state == LOGIC_LOSS){
         SDL_RenderCopy(renderer, lostface, NULL, &rect_face);
-    }else if(game_state == LOGIC_WIN){
+    }else if(logic->state == LOGIC_WIN){
         SDL_RenderCopy(renderer, winface, NULL, &rect_face);
     }else{
         SDL_RenderCopy(renderer, smileface, NULL, &rect_face);
@@ -313,7 +313,7 @@ void update_graphics(tileset* logic){
             if(logic->field[i][j].mask == HIDDEN){
                 SDL_RenderCopy(renderer, tex_tilefull, NULL, &rect_tiles[i][j]);
             }else if(logic->field[i][j].mask == FLAG){
-                if(game_state == LOGIC_LOSS && logic->field[i][j].value != BOMB){
+                if(logic->state == LOGIC_LOSS && logic->field[i][j].value != BOMB){
                     SDL_RenderCopy(renderer, tex_falseflag, NULL, &rect_tiles[i][j]);
                 }else{
                     SDL_RenderCopy(renderer, tex_flag, NULL, &rect_tiles[i][j]);
@@ -381,8 +381,13 @@ bool process_input(tileset* logic, int *row, int *col, int *key){
             int x, y;
             SDL_GetMouseState(&x, &y);
             if(x > rect_face.x && x < rect_face.x + FACE_SIZE && y > rect_face.y && y < rect_face.y + FACE_SIZE){
-                game_state = LOGIC_IDLE;
-                setup_game(logic);
+                // restart the game
+                logic->bombs_remaining = logic->bombs;
+                logic->time = 0;
+                logic->time_is_running = false;
+                logic->state = LOGIC_START;
+                hide_tiles(logic);
+
                 *row = -1;
                 *col = -1;
                 return true;
@@ -409,8 +414,8 @@ bool process_input(tileset* logic, int *row, int *col, int *key){
         default:
             break;
     }
-    if(time_is_running){
-        int current_second = (int)((SDL_GetTicks() - start_time) / 1000);
+    if(logic->time_is_running){
+        int current_second = (int)((SDL_GetTicks() - logic->start_time) / 1000);
         if(current_second > logic->time){
             logic->time = current_second;
             return true;

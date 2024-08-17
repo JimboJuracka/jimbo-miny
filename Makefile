@@ -11,8 +11,8 @@ raw:
 
 run:
 	$(CC) $(SOURCE) -o $(EXECUTABLE) $(CFLAGS) -Wall -Wextra -std=c99
-	./game
+	./game -b
 
 rr:
 	$(CC) $(SOURCE) -o $(EXECUTABLE)
-	./game
+	./game -b

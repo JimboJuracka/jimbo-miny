@@ -20,11 +20,11 @@
 
 // return values for update function
 typedef enum update_logic_result{
-    LOGIC_IDLE,
-    LOGIC_LOSS,
-    LOGIC_WIN,
-    LOGIC_ERR
-} update_logic_result;
+    LOGIC_IDLE,     // state in whitch game is when first tile was already cleared, but the game isn't over
+    LOGIC_LOSS,     // lost state
+    LOGIC_WIN,      // win state
+    LOGIC_START     // state in whitch game is, if no tile has been cleared yet
+} game_state;
 
 typedef struct {
     char mask;
@@ -35,8 +35,13 @@ typedef struct {
     int height;
     int width;
     int bombs;    //number of bombs
+    
     int bombs_remaining;
     int time;
+    uint32_t start_time;
+    bool time_is_running;
+    game_state state;
+
     tile** field;
 } tileset;
 
@@ -46,15 +51,19 @@ typedef struct {
 // | 0 0 0 
 // X
 
-extern update_logic_result game_state;
-extern bool time_is_running;
-extern uint32_t start_time;
+//extern update_logic_result game_state;
+//extern bool time_is_running;
+//extern uint32_t start_time;
 
 bool init_logic(tileset* mine_field, int height, int width, int n_mines);
 
-update_logic_result update_logic(tileset* mine_field, int x, int y, int key);
+void hide_tiles(tileset* mine_field);
 
-void setup_game(tileset* mine_field);
+unsigned int generateComplexSeed();
+
+void start_game(tileset* mine_field, int start_x, int start_y);
+
+void update_logic(tileset* mine_field, int x, int y, int key);
 
 void print_game(tileset* mine_field);
 
