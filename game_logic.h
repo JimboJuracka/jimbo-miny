@@ -31,29 +31,22 @@ typedef struct {
     char value;
 } tile;
 
+// structure contains all the information about the current state of the game
 typedef struct {
-    int height;
-    int width;
-    int bombs;    //number of bombs
+    // static values:
+    int height;     // number of tiles in each column
+    int width;      // number of tiles in each row
+    int bombs;      //number of bombs in the game
     
-    int bombs_remaining;
-    int time;
-    uint32_t start_time;
-    bool time_is_running;
-    game_state state;
+    //dynamic values:
+    int bombs_remaining;    // number of bombs left to mark (can go below 0)
+    int time;               // time in seconds
+    uint32_t start_time;    // time when the first tile was cleared (in miliseconds)
+    bool time_is_running;   // true if the countdown is running, otherwise false
+    game_state state;       // state the game is currently in
 
-    tile** field;
+    tile** field;           // pointer to all the tiles
 } tileset;
-
-// 0-------Y
-// | 0 0 0
-// | 0 0 0 
-// | 0 0 0 
-// X
-
-//extern update_logic_result game_state;
-//extern bool time_is_running;
-//extern uint32_t start_time;
 
 bool init_logic(tileset* mine_field, int height, int width, int n_mines);
 

@@ -245,6 +245,7 @@ bool init_graphics(tileset* logic){
     return true;
 }
 
+// loads a image from a path to the texture
 SDL_Texture* loadTexture(const char* path, SDL_Renderer* renderer){
     SDL_Texture* texture = IMG_LoadTexture(renderer, path);
     if(texture == NULL){
@@ -255,6 +256,7 @@ SDL_Texture* loadTexture(const char* path, SDL_Renderer* renderer){
 
 }
 
+// returns the correct texture for given number
 SDL_Texture* numbertoTexture(int number){
     switch(number){
         case 0:
@@ -282,6 +284,7 @@ SDL_Texture* numbertoTexture(int number){
     }
 }
 
+// updates all dynamic segments of the graphics
 void update_graphics(tileset* logic){
     // update face
     if(logic->state == LOGIC_LOSS){
@@ -359,43 +362,48 @@ void update_graphics(tileset* logic){
             }
         }
     }
+    // render the result
     SDL_RenderPresent(renderer);
 }
 
-//returns true if one of the tiles was clicked on, with left or right mouse button
+// function to process keyboard/mouse input and countdown. Return true, if the graphics of the game needs to be updated
 bool process_input(tileset* logic, int *row, int *col, int *key){
+    // first check if there is any event to process
     SDL_Event event;
     SDL_PollEvent(&event);
     switch(event.type){
+
+        // game was terminated with command
         case SDL_QUIT:
             game_quit = false;
             break;
 
+        // ESC key was pressed
         case SDL_KEYDOWN:
             if(event.key.keysym.sym == SDLK_ESCAPE){
                 game_quit = false;
             }
             break;
 
+        // mouse input
         case SDL_MOUSEBUTTONDOWN:
             int x, y;
             SDL_GetMouseState(&x, &y);
+            // if face icon was pressed, restart the game
             if(x > rect_face.x && x < rect_face.x + FACE_SIZE && y > rect_face.y && y < rect_face.y + FACE_SIZE){
-                // restart the game
                 logic->bombs_remaining = logic->bombs;
                 logic->time = 0;
                 logic->time_is_running = false;
                 logic->state = LOGIC_START;
                 hide_tiles(logic);
-
-                *row = -1;
-                *col = -1;
                 return true;
             }
+            // else, check if any of the tiles was pressed
             for(int i = 0; i < logic->height; i++){
                 for(int j = 0; j < logic->width; j++){
                     if(x > rect_tiles[i][j].x && x < rect_tiles[i][j].x + TILE_SIZE &&
                         y > rect_tiles[i][j].y && y < rect_tiles[i][j].y + TILE_SIZE){
+                        // if yes, return the row, column and key values
                         *row = i;
                         *col = j;
                         if(event.button.button == SDL_BUTTON_LEFT){
@@ -414,6 +422,9 @@ bool process_input(tileset* logic, int *row, int *col, int *key){
         default:
             break;
     }
+
+    // when the keyboard/mouse input is processed, try updating the countdown.
+    // Update the time, if time is running, and one second passed since the last update
     if(logic->time_is_running){
         int current_second = (int)((SDL_GetTicks() - logic->start_time) / 1000);
         if(current_second > logic->time){

@@ -8,16 +8,8 @@
 
 #include "game_logic.h"
 
-// 9 x 9 - 10
-// 16 x 16 - 40
-// 16 x 30 - 99
-
-// update_logic_result game_state = LOGIC_IDLE;
-// bool time_is_running = false;
-// uint32_t start_time;
-
+// constructor of the tileset structure, called only once
 bool init_logic(tileset* mine_field, int height, int width, int bombs){
-    // allocation of memory
     mine_field->field = malloc(sizeof(tile*) * height);
     if(mine_field->field == NULL){
         return false;
@@ -43,6 +35,7 @@ bool init_logic(tileset* mine_field, int height, int width, int bombs){
     return true;
 };
 
+// this sets the mask of each tile to HIDDEN
 void hide_tiles(tileset* mine_field){
     for(int i = 0; i < mine_field->height; i++){
         for(int j = 0; j < mine_field->width; j++){
@@ -51,15 +44,17 @@ void hide_tiles(tileset* mine_field){
     }
 }
 
+// function to generate some complex seed for the RNG
 unsigned int generateComplexSeed() {
-    unsigned int seed = time(NULL) ^ getpid() ^ (uintptr_t)&seed ^ SDL_GetTicks();
+    unsigned int seed = time(NULL) ^ getpid() ^ (uintptr_t)&seed;
     return seed;
 }
 
-// this function places mines, set numbers around them, only exists outside of init_logic so player can reset game
+// this function places mines, set numbers around them, exists outside of init_logic so player can reset game at any time
 void start_game(tileset* mine_field, int start_x, int start_y){
     srand(generateComplexSeed());
 
+    // set value of all tiles to BLANK
     for(int i = 0; i < mine_field->height; i++){
         for(int j = 0; j < mine_field->width; j++){
             mine_field->field[i][j].value = BLANK;
@@ -94,6 +89,7 @@ void start_game(tileset* mine_field, int start_x, int start_y){
     for(int i = 0; i < mine_field->height; i++){
         for(int j = 0; j < mine_field->width; j++){
             if(mine_field->field[i][j].value != BOMB){
+                // first, we need to count all the bombs around each tile without bomb
                 bombs_around = 0;
                 for(int k = i - 1; k <= i + 1; k++){
                     for(int l = j - 1; l <= j + 1; l++){
@@ -102,6 +98,7 @@ void start_game(tileset* mine_field, int start_x, int start_y){
                         }
                     }
                 }
+                // then the number of bombs arount tile is set as a value of that tile
                 mine_field->field[i][j].value = bombs_around;
             }
         }
@@ -110,6 +107,7 @@ void start_game(tileset* mine_field, int start_x, int start_y){
     mine_field->state = LOGIC_IDLE;
 }
 
+// function to print out the game on stdout - used for debugging
 void print_game(tileset* mine_field){
     for(int i = 0; i < mine_field->height; i++){
         for(int j = 0; j < mine_field->width; j++){
@@ -178,6 +176,7 @@ void print_game(tileset* mine_field){
     }
 }
 
+// this function reveals areas of blank tiles using recursion
 void reveal_blank_tiles(tileset* mine_field, int x, int y){
     mine_field->field[x][y].mask = CLEAR;
     if(mine_field->field[x][y].value == BLANK){
@@ -191,6 +190,7 @@ void reveal_blank_tiles(tileset* mine_field, int x, int y){
     }
 }
 
+// function that is called each time player clicks on any tile, to update the tileset and the state of the game
 void update_logic(tileset* mine_field, int x, int y, int key){
     // if out of bounds, do nothing
     if(x >= mine_field->height || x < 0 || y >= mine_field->width || y < 0){
@@ -310,6 +310,7 @@ void update_logic(tileset* mine_field, int x, int y, int key){
     return;
 }
 
+// destructor of tileset structure
 void destroy_logic(tileset* mine_field){
     if(mine_field != NULL){
         for(int i = 0; i < mine_field->height; i++){

@@ -15,7 +15,6 @@
 
 extern bool game_quit;
 
-
 bool init_graphics(tileset* logic);
 
 SDL_Texture* loadTexture(const char* path, SDL_Renderer* renderer);
